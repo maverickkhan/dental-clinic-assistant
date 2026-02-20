@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email        String        @unique @db.VarChar(255)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  fullName     String        @map("full_name") @db.VarChar(255)
+  role         String        @default("user") @db.VarChar(50)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  patients     Patient[]
+  chatMessages ChatMessage[]
+
+  @@index([email], map: "idx_users_email")
+  @@map("users")
+}
+
+model Patient {
+  id           String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  name         String        @db.VarChar(255)
+  email        String?       @db.VarChar(255)
+  phone        String?       @db.VarChar(50)
+  dateOfBirth  DateTime?     @map("date_of_birth") @db.Date
+  medicalNotes String?       @map("medical_notes")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatMessages ChatMessage[]
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_patients_user_created")
+  @@index([userId], map: "idx_patients_user_id")
+  @@map("patients")
+}
+
+model ChatMessage {
+  id        String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  patientId String      @map("patient_id") @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  role      String      @db.VarChar(20) // Keep as String for now to match existing data
+  content   String
+  metadata  Json?
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+
+  patient   Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, createdAt], map: "idx_chat_patient_created")
+  @@map("chat_messages")
+}
